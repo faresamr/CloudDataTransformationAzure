@@ -1,0 +1,143 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "StorgaeAccountType": {
+      "type": "string",
+      "defaultValue": "Standard_LRS",
+      "allowedValues": [
+        "Standard_LRS",
+        "Standard_ZRS",
+        "Standard_GRS",
+        "Standard_RAGRS",
+        "Premium_LRS"
+      ]
+    },
+    "FunctionAppNamePreffix": {
+      "type": "string",
+      "minLength": 0,
+      "maxLength": 3
+    }
+  },
+  "variables": {
+    "StorageAccount": "[toLower(concat(parameters('FunctionAppNamePreffix'),'cdt',uniquestring(resourceGroup().id)))]",
+    "blobContainer": "maps",
+    "FunctionAppName": "[concat(parameters('FunctionAppNamePreffix'),'CloudDataTransformation',uniquestring(resourceGroup().id))]",
+    "PackageFileURL": "https://github.com/faresamr/CloudDataTransformationAzure/blob/master/Package.zip",
+    "hostingPlanName": "[variables('FunctionAppName')]",
+    "storageAccountid": "[concat(resourceGroup().id,'/providers/','Microsoft.Storage/storageAccounts/', variables('StorageAccount'))]"
+  },
+  "resources": [
+    {
+      "name": "[variables('StorageAccount')]",
+      "type": "Microsoft.Storage/storageAccounts",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2016-01-01",
+      "sku": {
+        "name": "[parameters('StorgaeAccountType')]"
+      },
+      "dependsOn": [],
+      "tags": {
+        "displayName": "Blob Storage"
+      },
+      "kind": "Storage",
+      "resources": [
+        {
+          "type": "blobServices/containers",
+          "apiVersion": "2018-03-01-preview",
+          "name": "[concat('default/', variables('blobContainer'))]",
+          "properties": {
+            "publicAccess": "Blob"
+          },
+          "dependsOn": [
+            "[variables('StorageAccount')]"
+          ]
+        },
+        {
+          "type": "Microsoft.Web/serverfarms",
+          "apiVersion": "2015-04-01",
+          "name": "[variables('hostingPlanName')]",
+          "location": "[resourceGroup().location]",
+          "properties": {
+            "name": "[variables('hostingPlanName')]",
+            "computeMode": "Dynamic",
+            "sku": "Dynamic"
+          },
+          "tags": {
+            "displayName": "Server Farms"
+          }
+        },
+        {
+          "apiVersion": "2015-08-01",
+          "type": "Microsoft.Web/sites",
+          "name": "[variables('FunctionAppName')]",
+          "identity": {
+            "type": "SystemAssigned"
+          },
+          "tags": {
+            "displayName": "Function App"
+          },
+          "location": "[resourceGroup().location]",
+          "kind": "functionapp",
+          "dependsOn": [
+            "[resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName'))]",
+            "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccount'))]"
+          ],
+          "properties": {
+            "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName'))]",
+            "siteConfig": {
+              "appSettings": [
+                {
+                  "name": "AzureWebJobsDashboard",
+                  "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('StorageAccount'), ';AccountKey=', listKeys(variables('storageAccountid'),'2015-05-01-preview').key1)]"
+                },
+                {
+                  "name": "AzureWebJobsStorage",
+                  "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('StorageAccount'), ';AccountKey=', listKeys(variables('storageAccountid'),'2015-05-01-preview').key1)]"
+                },
+                {
+                  "name": "AzureFunctionStatusFile",
+                  "value": "functionStatus.global"
+                },
+                {
+                  "name": "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING",
+                  "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('StorageAccount'), ';AccountKey=', listKeys(variables('storageAccountid'),'2015-05-01-preview').key1)]"
+                },
+                {
+                  "name": "WEBSITE_CONTENTSHARE",
+                  "value": "[toLower(variables('FunctionAppName'))]"
+                },
+                {
+                  "name": "FUNCTIONS_EXTENSION_VERSION",
+                  "value": "~1"
+                },
+                {
+                  "name": "WEBSITE_RUN_FROM_ZIP",
+                  "value": 1
+                }
+              ]
+            }
+          },
+          "resources": [
+            {
+              "name": "MSDeploy",
+              "type": "extensions",
+              "location": "[resourceGroup().location]",
+              "apiVersion": "2015-08-01",
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]"
+              ],
+              "tags": {
+                "displayName": "MSDeploy"
+              },
+              "properties": {
+                "packageUri": "[variables('PackageFileURL')]",
+                "dbType": "None",
+                "connectionString": ""
+              }
+            }
+          ]
+        }
+      ],
+  "outputs": {}
+}
