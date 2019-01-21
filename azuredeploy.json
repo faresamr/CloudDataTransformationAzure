@@ -52,6 +52,7 @@
           "dependsOn": [
             "[variables('StorageAccount')]"
           ]
+        }
         },
         {
           "type": "Microsoft.Web/serverfarms",
