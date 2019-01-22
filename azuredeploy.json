@@ -23,7 +23,7 @@
     "StorageAccount": "[toLower(concat(parameters('FunctionAppNamePreffix'),'cdt',uniquestring(resourceGroup().id)))]",
     "blobContainer": "maps",
     "FunctionAppName": "[concat(parameters('FunctionAppNamePreffix'),'CloudDataTransformation',uniquestring(resourceGroup().id))]",
-    "PackageFileURL": "http://github.com/faresamr/CloudDataTransformationAzure/raw/master/Package.zip",
+    "PackageFileURL": "https://armtemplatetestfa.blob.core.windows.net/test/Package.zip",
     "hostingPlanName": "[variables('FunctionAppName')]",
     "storageAccountid": "[concat(resourceGroup().id,'/providers/','Microsoft.Storage/storageAccounts/', variables('StorageAccount'))]"
   },
